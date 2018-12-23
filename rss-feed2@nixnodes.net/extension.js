@@ -631,9 +631,9 @@ const RssFeed = new Lang.Class(
 		{
 			let item = rssParser.Items[i];
 			let itemURL = item.HttpLink;
-
-			if (itemCache[itemURL])
-				continue;
+			//If all feed items have the same url this bugs out.
+			//if (itemCache[itemURL])
+			//	continue;
 
 			/* remove HTML tags */
 			item.Title = Encoder.htmlDecode(item.Title).replace(/<.*?>/g, "").trim();
