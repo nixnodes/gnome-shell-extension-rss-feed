@@ -79,9 +79,9 @@ const RssFeed2 = GObject.registerClass(
 		 * Initialize instance of RssFeed class
 		 */
 		_init()
-		{		
+		{
 			super._init(0.0, "RSS Feed 2");
-			
+
 			this._httpSession = new Soup.SessionAsync(
 			{
 				timeout : 60
@@ -136,10 +136,23 @@ const RssFeed2 = GObject.registerClass(
 
 			this.menu.actor.add_style_class_name('rss-menu');
 
+			let seenOnClose = Settings.get_boolean(GSKeys.SET_SEEN_WHEN_CLOSED);
+
 			this.menu.connect('open-state-changed', (self, open) =>
 			{
 				if (open && this._lastOpen)
+				{
+					Log.Debug("opening")
 					this._lastOpen.open();
+				}
+
+				if (open == false && seenOnClose == true)
+				{
+					this._setAllFeedsAsSeen();
+					this._totalUnreadCount = 0;
+					this._updateUnreadCountLabel(0);
+
+				}
 			});
 
 			let separator = new PopupMenu.PopupSeparatorMenuItem();
@@ -149,6 +162,7 @@ const RssFeed2 = GObject.registerClass(
 			if (mbAlignTop)
 			{
 				this._createMainPanelButtons();
+				
 				this.menu.addMenuItem(separator);
 			}
 
@@ -254,6 +268,42 @@ const RssFeed2 = GObject.registerClass(
 			super.destroy();
 		}
 
+
+
+		_setAllFeedsAsSeen()
+		{
+			for (let i = 0; i < this._rssFeedsSources.length; i++)
+			{
+				let url = this._rssFeedsSources[i];
+
+				let feedCache = this._feedsCache[url];
+
+				if (!feedCache)
+					continue;
+
+				feedCache.UnreadCount = 0;
+
+				for (let j = 0; j < feedCache.Items.length; j++)
+				{
+					let link = feedCache.Items[j];
+					feedCache.Items[link].Menu.setOrnament(PopupMenu.Ornament.NONE);
+					//Log.Debug(Object.keys(feedCache.Items[link]));
+					feedCache.Items[link].Unread = null;
+
+				}
+				
+				//Log.Debug(Object.keys(feedCache));
+
+				feedCache.Menu.label.text = feedCache.Menu._olabeltext;
+
+				feedCache.Menu.setOrnament(PopupMenu.Ornament.NONE);
+
+				this._feedsCache[url] = feedCache;
+			}
+
+			return;
+		}
+
 		_updateUnreadCountLabel(count)
 		{
 			var text = !count ? '' : count.toString();
@@ -283,6 +333,7 @@ const RssFeed2 = GObject.registerClass(
 			this._detectUpdates = Settings.get_boolean(GSKeys.DETECT_UPDATES);
 			this._notifOnLockScreen = Settings.get_boolean(GSKeys.NOTIFICATIONS_ON_LOCKSCREEN);
 			this._http_keepalive = Settings.get_boolean(GSKeys.HTTP_KEEPALIVE);
+			this._setSeenOnClose = Settings.get_boolean(GSKeys.SET_SEEN_WHEN_CLOSED);
 
 			this._aSettings.load();
 
@@ -317,7 +368,7 @@ const RssFeed2 = GObject.registerClass(
 
 			this.menu.close();
 
-			this._settingsCWId = GLib.child_watch_add(GLib.PRIORITY_DEFAULT, pid, 
+			this._settingsCWId = GLib.child_watch_add(GLib.PRIORITY_DEFAULT, pid,
 				(pid, status) =>
 				{
 					this._settingsCWId = undefined;
@@ -431,10 +482,10 @@ const RssFeed2 = GObject.registerClass(
 					if (l2o != -1)
 						url = url.substr(0, l2o);
 
-					let sourceID = Mainloop.timeout_add(i * this._rssPollDelay, 
+					let sourceID = Mainloop.timeout_add(i * this._rssPollDelay,
 						() =>
 						{
-							this._httpGetRequestAsync(url, JSON.parse(jsonObj), sourceURL, 
+							this._httpGetRequestAsync(url, JSON.parse(jsonObj), sourceURL,
 								this._onDownload.bind(this));
 							delete this._feedTimers[sourceID];
 						});
@@ -447,7 +498,7 @@ const RssFeed2 = GObject.registerClass(
 			if (this._updateInterval > 0)
 			{
 				Log.Debug("Next scheduled reload after " + this._updateInterval * 60 + " seconds");
-				this._timeout = Mainloop.timeout_add_seconds(this._updateInterval * 60, 
+				this._timeout = Mainloop.timeout_add_seconds(this._updateInterval * 60,
 					() =>
 					{
 						this._timeout = undefined;
@@ -475,7 +526,7 @@ const RssFeed2 = GObject.registerClass(
 			if (!this._http_keepalive)
 				request.request_headers.replace("Connection", "close");
 
-			this._httpSession.queue_message(request, function(httpSession, message) 
+			this._httpSession.queue_message(request, function(httpSession, message)
 			{
 				let status_phrase = Soup.Status.get_phrase(message.status_code);
 
@@ -501,8 +552,10 @@ const RssFeed2 = GObject.registerClass(
 		 */
 		_onDownload (responseData, sourceURL)
 		{
-			
+
 			let rssParser = Parser.createRssParser(responseData);
+
+
 
 			if (rssParser == null)
 			{
@@ -531,7 +584,7 @@ const RssFeed2 = GObject.registerClass(
 			}
 			else
 				feedCache = this._feedsCache[sourceURL];
-			
+
 			let itemCache = feedCache.Items;
 			let subMenu;
 
@@ -570,7 +623,7 @@ const RssFeed2 = GObject.registerClass(
 				disableUpdates = gsData['u'];
 			}
 
-			/* 
+			/*
 			 * Cleanup article list of this source
 			 */
 			let i = itemCache.length;
@@ -669,8 +722,8 @@ const RssFeed2 = GObject.registerClass(
 
 						cacheObj._itemDescription = itemDescription;
 
-						/* 
-						 *  show description inside the article label, when selected 
+						/*
+						 *  show description inside the article label, when selected
 						 *
 						 *  FIXME:
 						 *  This is not an ideal solution, it should be replaced with
@@ -708,10 +761,16 @@ const RssFeed2 = GObject.registerClass(
 				/* increment unread counts and flag item as unread */
 				feedCache.UnreadCount++;
 				this._totalUnreadCount++;
-				cacheObj.Unread = true;
 
-				/* decorate menu item, indicating it unread */
+
+				//Log.Debug('--------------')
+				//Log.Debug(feedCache.UnreadCount);
+				//Log.Debug(feedCache.pUnreadCount);
+				//Log.Debug(this._totalUnreadCount);
+
+				cacheObj.Unread = true
 				menu.setOrnament(PopupMenu.Ornament.DOT);
+
 
 				/* trigger notification, if requested */
 				if (this._enableNotifications && !muteNotifications)
@@ -733,6 +792,7 @@ const RssFeed2 = GObject.registerClass(
 				feedCache._initialRefresh = true;
 			else
 			{
+				
 				if (feedCache.UnreadCount)
 				{
 					if (feedCache.UnreadCount != feedCache.pUnreadCount)
@@ -740,10 +800,12 @@ const RssFeed2 = GObject.registerClass(
 							+ feedCache.UnreadCount + ')'));
 
 					feedCache.pUnreadCount = feedCache.UnreadCount;
-
+					this._updateUnreadCountLabel(this._totalUnreadCount);
+					
 					subMenu.setOrnament(PopupMenu.Ornament.DOT);
 
-					this._updateUnreadCountLabel(this._totalUnreadCount);
+
+				
 				}
 			}
 
@@ -767,23 +829,23 @@ const RssFeed2 = GObject.registerClass(
 					icon_name : NOTIFICATION_ICON
 				});
 			};
-			
+
 			let sourcePolicy = Source.policy;
-			
-			/* 
+
+			/*
 			 * Configure source policy, implicitly show details if lockscreen
-			 * notifications are enabled 
+			 * notifications are enabled
 			 */
 			sourcePolicy._detailsInLockScreen =
 				sourcePolicy._showInLockScreen = this._notifOnLockScreen;
 
 			Main.messageTray.add(Source);
 
-			let notification = new MessageTray.Notification(Source, title, message);			
+			let notification = new MessageTray.Notification(Source, title, message);
 			notification.setPrivacyScope(MessageTray.PrivacyScope.SYSTEM);
-			
+
 			let notifCache = this._notifCache;
-			
+
 			/* remove notifications with same ID */
 			let i = notifCache.length;
 			while (i--)
@@ -800,7 +862,7 @@ const RssFeed2 = GObject.registerClass(
 			notification._itemURL = url;
 			notification._cacheObj = cacheObj;
 
-			notification.addAction(_('Open URL'), function() 
+			notification.addAction(_('Open URL'), function()
 			{
 				Misc.processLinkOpen(notification._itemURL, notification._cacheObj);
 				notification.destroy();
@@ -823,7 +885,7 @@ const RssFeed2 = GObject.registerClass(
 			});
 
 			notification.setResident(true);
-			
+
 
 			/*
 			 * Destroy the source after notification is gone

@@ -87,5 +87,10 @@
 		    <summary>HTTP Keep-Alive</summary>
 		    <description>Set Keep-Alive in HTTP request headers</description>
 		</key>
+		<key type="b" name="set-seen-when-closed">
+		    <default>false</default>
+		    <summary>Set all feeds as seen when closed.</summary>
+		    <description>Set all RSS feeds as seen whenever the user closes the main popup menu.</description>
+		</key>		
     </schema>
 </schemalist>

@@ -15,3 +15,4 @@ var CLEANUP_NOTIFICATIONS = 'notifications-cleanup';
 var DETECT_UPDATES = 'detect-updates';
 var RSS_FEEDS_SETTINGS = 'rss-feeds-settings';
 var HTTP_KEEPALIVE = 'http-keep-alive';
+var SET_SEEN_WHEN_CLOSED = 'set-seen-when-closed';

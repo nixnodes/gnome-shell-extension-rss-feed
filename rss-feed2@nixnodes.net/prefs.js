@@ -113,6 +113,8 @@ const RssFeedSettingsWidget = GObject.registerClass(
 					this._addSpinButton(general_box, GSKeys.POLL_DELAY, _("Poll delay (ms):"), MAX_POLL_DELAY);
 					this._addSwitch(general_box, GSKeys.PRESERVE_ON_LOCK, _("Preserve when screen off:"));
 					this._addSwitch(general_box, GSKeys.DETECT_UPDATES, _("Detect updates:"));
+					
+
 
 					let debug_box = new Gtk.Box(
 					{
@@ -182,6 +184,7 @@ const RssFeedSettingsWidget = GObject.registerClass(
 					this._addSwitch(menu_box, GSKeys.ENABLE_ANIMATIONS, _("Enable animations:"));
 					this._addSwitch(menu_box, GSKeys.MB_ALIGN_TOP, _("Top-align buttons:"));
 					this._addSwitch(menu_box, GSKeys.ENABLE_DESC, _("Show descriptions:"));
+					this._addSwitch(menu_box, GSKeys.SET_SEEN_WHEN_CLOSED, _("Set every feed as seen when closed:"));
 				}
 
 				upper_box.add(menu_box);
